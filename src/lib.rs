@@ -9,6 +9,10 @@ use termcolor::WriteColor;
 
 pub trait CommandExt {
     fn exec(&mut self) -> anyhow::Result<()>;
+    fn exec_args<I, S>(&mut self, args: I) -> anyhow::Result<()>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>;
     fn exec_stdout_string(&mut self) -> anyhow::Result<String>;
 }
 
@@ -46,6 +50,14 @@ impl CommandExt for Command {
         stderr.with_color(&eo_color_spec, |s| write!(s, " END OUTPUT ").unwrap());
         writeln!(stderr).unwrap();
         Ok(())
+    }
+    fn exec_args<I, S>(&mut self, args: I) -> anyhow::Result<()>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        self.args(args);
+        self.exec()
     }
 
     fn exec_stdout_string(&mut self) -> anyhow::Result<String> {
