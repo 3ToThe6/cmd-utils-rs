@@ -13,7 +13,13 @@ pub trait CommandExt {
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>;
+
     fn exec_stdout_string(&mut self) -> anyhow::Result<String>;
+
+    fn args_<I, S>(self, args: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>;
 }
 
 impl CommandExt for Command {
@@ -81,6 +87,16 @@ impl CommandExt for Command {
             anyhow::Error::new(e).context(context)
         })?;
         Ok(stdout)
+    }
+
+    fn args_<I, S>(self, args: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let mut self_ = self;
+        self_.args(args);
+        self_
     }
 }
 
