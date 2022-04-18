@@ -3,7 +3,7 @@
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::io::Write;
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 
 use anyhow::Context;
 use termcolor::WriteColor;
@@ -22,11 +22,22 @@ pub trait CommandExt {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>;
 
-    fn exec_stdout_string(&mut self) -> anyhow::Result<String>;
+    fn exec_stdout_string(self) -> anyhow::Result<Output>;
 }
 
 pub struct CommandDescription<'a> {
     cmd: &'a Command,
+}
+
+pub struct Output {
+    pub command: Command,
+    pub status: ExitStatus,
+    pub stdout: String,
+    pub stderr: Vec<u8>,
+}
+
+pub struct OutputDescription<'a> {
+    out: &'a Output,
 }
 
 impl CommandExt for Command {
@@ -87,27 +98,28 @@ impl CommandExt for Command {
         self.exec()
     }
 
-    fn exec_stdout_string(&mut self) -> anyhow::Result<String> {
-        use std::process::{Output, Stdio};
-        let Output { status, stdout, stderr } = self
+    fn exec_stdout_string(self) -> anyhow::Result<Output> {
+        use std::process::{Output as StdOutput, Stdio};
+        let mut self_ = self;
+        let StdOutput { status, stdout, stderr } = self_
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
-            .with_context(|| format!("Failed to execute command ({})", self.description()))?;
+            .with_context(|| format!("Failed to execute command ({})", self_.description()))?;
         if !status.success() {
             anyhow::bail!(
                 "Process did not exit successfully ({})",
-                cmd_info_with_output(self, &stdout, &stderr),
+                cmd_info_with_output(&self_, &stdout, &stderr),
             );
         }
         let stdout = String::from_utf8(stdout).map_err(|e| {
             let context = format!(
                 "Process stdout is not UTF-8 ({})",
-                cmd_info_with_output(self, e.as_bytes(), &stderr),
+                cmd_info_with_output(&self_, e.as_bytes(), &stderr),
             );
             anyhow::Error::new(e).context(context)
         })?;
-        Ok(stdout)
+        Ok(Output { command: self_, status, stdout, stderr })
     }
 }
 
@@ -120,6 +132,18 @@ impl Display for CommandDescription<'_> {
             self.cmd.get_args(),
             self.cmd.get_envs(),
             self.cmd.get_current_dir(),
+        )
+    }
+}
+
+impl Display for OutputDescription<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}, stdout = {:?}, stderr = {:?}",
+            self.out.command.description(),
+            self.out.stdout,
+            String::from_utf8_lossy(&self.out.stderr),
         )
     }
 }
@@ -168,7 +192,7 @@ where
     termcolor::StandardStream::stderr(color_choice).with_color(spec, f)
 }
 
-pub fn cmd_info_with_output(cmd: &Command, stdout: &[u8], stderr: &[u8]) -> String {
+fn cmd_info_with_output(cmd: &Command, stdout: &[u8], stderr: &[u8]) -> String {
     format!(
         "{}, stdout = {:?}, stderr = {:?}",
         cmd.description(),
