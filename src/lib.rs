@@ -106,6 +106,20 @@ impl TermColorStandardStreamExt for termcolor::StandardStream {
     }
 }
 
+pub fn stdout_with_color<F, T>(spec: &termcolor::ColorSpec, f: F) -> T
+where
+    F: FnOnce(&mut termcolor::StandardStream) -> T,
+{
+    termcolor::StandardStream::stdout(termcolor::ColorChoice::Auto).with_color(spec, f)
+}
+
+pub fn stderr_with_color<F, T>(spec: &termcolor::ColorSpec, f: F) -> T
+where
+    F: FnOnce(&mut termcolor::StandardStream) -> T,
+{
+    termcolor::StandardStream::stderr(termcolor::ColorChoice::Auto).with_color(spec, f)
+}
+
 fn cmd_info(cmd: &Command) -> String {
     format!(
         "program = {:?}, args = {:?}, envs = {:?}, current_dir = {:?}",
