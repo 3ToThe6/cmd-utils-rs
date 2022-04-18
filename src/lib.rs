@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 use std::ffi::OsStr;
+use std::fmt::Display;
 use std::io::Write;
 use std::process::Command;
 
@@ -8,6 +9,13 @@ use anyhow::Context;
 use termcolor::WriteColor;
 
 pub trait CommandExt {
+    fn description(&self) -> CommandDescription<'_>;
+
+    fn args_<I, S>(self, args: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>;
+
     fn exec(&mut self) -> anyhow::Result<()>;
     fn exec_args<I, S>(&mut self, args: I) -> anyhow::Result<()>
     where
@@ -15,14 +23,27 @@ pub trait CommandExt {
         S: AsRef<OsStr>;
 
     fn exec_stdout_string(&mut self) -> anyhow::Result<String>;
+}
+
+pub struct CommandDescription<'a> {
+    cmd: &'a Command,
+}
+
+impl CommandExt for Command {
+    fn description(&self) -> CommandDescription<'_> {
+        CommandDescription { cmd: self }
+    }
 
     fn args_<I, S>(self, args: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<OsStr>;
-}
+        S: AsRef<OsStr>,
+    {
+        let mut self_ = self;
+        self_.args(args);
+        self_
+    }
 
-impl CommandExt for Command {
     fn exec(&mut self) -> anyhow::Result<()> {
         use termcolor::{Color, ColorChoice, ColorSpec, StandardStream};
 
@@ -72,7 +93,7 @@ impl CommandExt for Command {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
-            .with_context(|| format!("Failed to execute command ({})", cmd_info(self)))?;
+            .with_context(|| format!("Failed to execute command ({})", self.description()))?;
         if !status.success() {
             anyhow::bail!(
                 "Process did not exit successfully ({})",
@@ -88,15 +109,18 @@ impl CommandExt for Command {
         })?;
         Ok(stdout)
     }
+}
 
-    fn args_<I, S>(self, args: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<OsStr>,
-    {
-        let mut self_ = self;
-        self_.args(args);
-        self_
+impl Display for CommandDescription<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "program = {:?}, args = {:?}, envs = {:?}, current_dir = {:?}",
+            self.cmd.get_program(),
+            self.cmd.get_args(),
+            self.cmd.get_envs(),
+            self.cmd.get_current_dir(),
+        )
     }
 }
 
@@ -144,20 +168,10 @@ where
     termcolor::StandardStream::stderr(color_choice).with_color(spec, f)
 }
 
-pub fn cmd_info(cmd: &Command) -> String {
-    format!(
-        "program = {:?}, args = {:?}, envs = {:?}, current_dir = {:?}",
-        cmd.get_program(),
-        cmd.get_args(),
-        cmd.get_envs(),
-        cmd.get_current_dir(),
-    )
-}
-
 pub fn cmd_info_with_output(cmd: &Command, stdout: &[u8], stderr: &[u8]) -> String {
     format!(
         "{}, stdout = {:?}, stderr = {:?}",
-        cmd_info(cmd),
+        cmd.description(),
         String::from_utf8_lossy(stdout),
         String::from_utf8_lossy(stderr),
     )
