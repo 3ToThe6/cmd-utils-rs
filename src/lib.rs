@@ -110,14 +110,22 @@ pub fn stdout_with_color<F, T>(spec: &termcolor::ColorSpec, f: F) -> T
 where
     F: FnOnce(&mut termcolor::StandardStream) -> T,
 {
-    termcolor::StandardStream::stdout(termcolor::ColorChoice::Auto).with_color(spec, f)
+    let color_choice = match atty::is(atty::Stream::Stdout) {
+        true => termcolor::ColorChoice::Auto,
+        false => termcolor::ColorChoice::Never,
+    };
+    termcolor::StandardStream::stdout(color_choice).with_color(spec, f)
 }
 
 pub fn stderr_with_color<F, T>(spec: &termcolor::ColorSpec, f: F) -> T
 where
     F: FnOnce(&mut termcolor::StandardStream) -> T,
 {
-    termcolor::StandardStream::stderr(termcolor::ColorChoice::Auto).with_color(spec, f)
+    let color_choice = match atty::is(atty::Stream::Stderr) {
+        true => termcolor::ColorChoice::Auto,
+        false => termcolor::ColorChoice::Never,
+    };
+    termcolor::StandardStream::stderr(color_choice).with_color(spec, f)
 }
 
 fn cmd_info(cmd: &Command) -> String {
