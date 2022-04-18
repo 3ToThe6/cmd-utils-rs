@@ -75,13 +75,13 @@ impl CommandExt for Command {
             .with_context(|| format!("Failed to execute command ({})", cmd_info(self)))?;
         if !status.success() {
             anyhow::bail!(
-                "Process did not exit successfully: ({})",
+                "Process did not exit successfully ({})",
                 cmd_info_with_output(self, &stdout, &stderr),
             );
         }
         let stdout = String::from_utf8(stdout).map_err(|e| {
             let context = format!(
-                "Process stdout is not UTF-8: {}",
+                "Process stdout is not UTF-8 ({})",
                 cmd_info_with_output(self, e.as_bytes(), &stderr),
             );
             anyhow::Error::new(e).context(context)
@@ -144,7 +144,7 @@ where
     termcolor::StandardStream::stderr(color_choice).with_color(spec, f)
 }
 
-fn cmd_info(cmd: &Command) -> String {
+pub fn cmd_info(cmd: &Command) -> String {
     format!(
         "program = {:?}, args = {:?}, envs = {:?}, current_dir = {:?}",
         cmd.get_program(),
@@ -154,7 +154,7 @@ fn cmd_info(cmd: &Command) -> String {
     )
 }
 
-fn cmd_info_with_output(cmd: &Command, stdout: &[u8], stderr: &[u8]) -> String {
+pub fn cmd_info_with_output(cmd: &Command, stdout: &[u8], stderr: &[u8]) -> String {
     format!(
         "{}, stdout = {:?}, stderr = {:?}",
         cmd_info(cmd),
