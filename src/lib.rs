@@ -140,7 +140,7 @@ fn cmd_info(cmd: &Command) -> String {
 
 fn cmd_info_with_output(cmd: &Command, stdout: &[u8], stderr: &[u8]) -> String {
     format!(
-        "{}, stdout = {}, stderr = {}",
+        "{}, stdout = {:?}, stderr = {:?}",
         cmd_info(cmd),
         String::from_utf8_lossy(stdout),
         String::from_utf8_lossy(stderr),
