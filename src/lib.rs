@@ -123,6 +123,12 @@ impl CommandExt for Command {
     }
 }
 
+impl Output {
+    pub fn description(&self) -> OutputDescription<'_> {
+        OutputDescription { out: self }
+    }
+}
+
 impl Display for CommandDescription<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
