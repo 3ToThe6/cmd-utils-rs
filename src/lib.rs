@@ -87,6 +87,10 @@ impl CommandExt for Command {
         };
         stderr.with_color(&eo_color_spec, |s| write!(s, " END OUTPUT ").unwrap());
         writeln!(stderr).unwrap();
+
+        if !cmd_success {
+            anyhow::bail!("Process did not exit successfully");
+        }
         Ok(())
     }
     fn exec_args<I, S>(&mut self, args: I) -> anyhow::Result<()>
